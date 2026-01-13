@@ -47,7 +47,8 @@ export const sampleMedicines: Record<string, Medicine> = {
       unit: 'strip of 15 tablets'
     },
     availability: 'Widely Available',
-    dosageForms: ['Tablet', 'Suspension']
+    dosageForms: ['Tablet', 'Suspension'],
+    imageUrl: 'https://images.apollo247.in/pub/media/catalog/product/d/o/dol0007_1.jpg'
   },
   'azithromycin': {
     id: '2',
@@ -94,7 +95,8 @@ export const sampleMedicines: Record<string, Medicine> = {
       unit: 'strip of 3 tablets'
     },
     availability: 'Prescription Only',
-    dosageForms: ['Tablet', 'Suspension', 'Injection']
+    dosageForms: ['Tablet', 'Suspension', 'Injection'],
+    imageUrl: 'https://images.apollo247.in/pub/media/catalog/product/a/z/azi0027.jpg'
   },
   'pan d': {
     id: '3',
@@ -141,7 +143,8 @@ export const sampleMedicines: Record<string, Medicine> = {
       unit: 'strip of 15 capsules'
     },
     availability: 'Available',
-    dosageForms: ['Capsule']
+    dosageForms: ['Capsule'],
+    imageUrl: 'https://images.apollo247.in/pub/media/catalog/product/p/a/pan0154.jpg'
   }
 };
 
