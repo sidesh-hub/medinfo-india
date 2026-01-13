@@ -54,29 +54,44 @@ const getAvailabilityColor = (availability: Medicine['availability']) => {
 const MedicineCard = ({ medicine }: MedicineCardProps) => {
   return (
     <Card className="w-full max-w-2xl border-medicine-border shadow-card overflow-hidden animate-slide-up">
-      {/* Header */}
+      {/* Header with Image */}
       <CardHeader className="bg-medicine-header pb-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10">
-              <Pill className="w-6 h-6 text-primary" />
+        <div className="flex items-start gap-4">
+          {/* Medicine Image */}
+          {medicine.imageUrl && (
+            <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-white border border-border/50 shadow-sm">
+              <img 
+                src={medicine.imageUrl} 
+                alt={`${medicine.name} packaging`}
+                className="w-full h-full object-contain p-1"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
             </div>
-            <div>
-              <h3 className="font-display text-xl font-bold text-foreground">
-                {medicine.name}
-              </h3>
-              <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
-                <Building2 className="w-3.5 h-3.5" />
-                {medicine.manufacturer}
-              </p>
+          )}
+          <div className="flex-1 flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10">
+                <Pill className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-display text-xl font-bold text-foreground">
+                  {medicine.name}
+                </h3>
+                <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-0.5">
+                  <Building2 className="w-3.5 h-3.5" />
+                  {medicine.manufacturer}
+                </p>
+              </div>
             </div>
+            <Badge 
+              variant="outline" 
+              className={`${getScheduleBadgeVariant(medicine.schedule)} font-medium`}
+            >
+              {medicine.schedule}
+            </Badge>
           </div>
-          <Badge 
-            variant="outline" 
-            className={`${getScheduleBadgeVariant(medicine.schedule)} font-medium`}
-          >
-            {medicine.schedule}
-          </Badge>
         </div>
       </CardHeader>
 

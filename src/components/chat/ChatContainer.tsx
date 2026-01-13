@@ -183,18 +183,16 @@ Is there another medicine you'd like to know about?`,
 
     setMessages((prev) => prev.filter((m) => m.id !== 'typing').concat(assistantMessage));
 
-    // If medicine was found, add image verification prompt
+    // If medicine was found, add a helpful follow-up
     if (response.medicineData) {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      const verificationMessage: Message = {
+      const followUpMessage: Message = {
         id: generateId(),
         role: 'assistant',
-        content: `📸 **Does the packaging match what you have?** 
-
-If you'd like, you can upload a picture of your medicine strip or box for verification. Just click the image button below!`,
+        content: `💡 **Need more information?** Feel free to ask about other medicines, or if you have any questions about this one!`,
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, verificationMessage]);
+      setMessages((prev) => [...prev, followUpMessage]);
     }
 
     setIsLoading(false);
