@@ -26,6 +26,15 @@ serve(async (req) => {
 
     console.log(`Looking up medicine: ${medicineName}`);
 
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) {
+      console.error('LOVABLE_API_KEY is not configured');
+      return new Response(
+        JSON.stringify({ error: 'AI is not configured', found: false, medicine: null }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const systemPrompt = `You are a pharmaceutical information assistant. When given a medicine name, provide accurate, detailed information in JSON format.
 
 IMPORTANT: Respond ONLY with valid JSON, no markdown or other text.
@@ -58,8 +67,7 @@ The JSON must have this exact structure:
       "unit": "strip of X tablets" or appropriate unit
     },
     "availability": "Widely Available" or "Available" or "Prescription Only",
-    "dosageForms": ["Tablet", "Capsule", etc.],
-    "imageUrl": null
+    "dosageForms": ["Tablet", "Capsule", etc.]
   },
   "disclaimer": "This information is for educational purposes only. Always consult a healthcare professional before taking any medication."
 }
@@ -74,16 +82,8 @@ If the medicine is not recognized or doesn't exist, return:
 
 Be accurate and provide real pharmaceutical information. Include common brand names if the generic name is given, and vice versa.`;
 
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      console.error('LOVABLE_API_KEY is not configured');
-      return new Response(
-        JSON.stringify({ error: 'AI is not configured', found: false, medicine: null }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const response = await fetch(AI_GATEWAY_URL, {
+    // Step 1: Get medicine information
+    const infoResponse = await fetch(AI_GATEWAY_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${lovableApiKey}`,
@@ -98,21 +98,20 @@ Be accurate and provide real pharmaceutical information. Include common brand na
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI gateway error', { status: response.status, url: AI_GATEWAY_URL, body: errorText?.slice?.(0, 1000) });
-      throw new Error(`AI API error: ${response.status}`);
+    if (!infoResponse.ok) {
+      const errorText = await infoResponse.text();
+      console.error('AI gateway error (info)', { status: infoResponse.status, body: errorText?.slice?.(0, 1000) });
+      throw new Error(`AI API error: ${infoResponse.status}`);
     }
 
-    const data = await response.json();
-    console.log('AI response received');
+    const infoData = await infoResponse.json();
+    console.log('Medicine info received');
 
-    const aiContent = data.choices[0].message.content;
+    const aiContent = infoData.choices[0].message.content;
     
     // Parse the JSON from AI response
     let medicineData;
     try {
-      // Try to extract JSON from the response (in case there's extra text)
       const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         medicineData = JSON.parse(jsonMatch[0]);
@@ -122,6 +121,49 @@ Be accurate and provide real pharmaceutical information. Include common brand na
     } catch (parseError) {
       console.error('Failed to parse AI response:', aiContent);
       throw new Error('Failed to parse medicine information');
+    }
+
+    // Step 2: Generate medicine image if medicine was found
+    if (medicineData.found && medicineData.medicine) {
+      try {
+        console.log('Generating medicine image...');
+        
+        const medicine = medicineData.medicine;
+        const imagePrompt = `Generate a professional, clean product image of a medicine package/box. The medicine is "${medicine.name}" (${medicine.genericName}) made by ${medicine.manufacturer}. Show a realistic pharmaceutical packaging with the medicine name clearly visible. The packaging should look professional and medical. White or light background for product photography. Dosage form: ${medicine.dosageForms?.[0] || 'tablet'}. Style: commercial product photography, clean, professional, pharmaceutical.`;
+
+        const imageResponse = await fetch(AI_GATEWAY_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash-image-preview',
+            messages: [
+              { role: 'user', content: imagePrompt }
+            ],
+            modalities: ['image', 'text'],
+          }),
+        });
+
+        if (imageResponse.ok) {
+          const imageData = await imageResponse.json();
+          const generatedImage = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          
+          if (generatedImage) {
+            medicineData.medicine.imageUrl = generatedImage;
+            console.log('Medicine image generated successfully');
+          } else {
+            console.log('No image in response');
+          }
+        } else {
+          const errorText = await imageResponse.text();
+          console.error('Image generation failed:', imageResponse.status, errorText?.slice?.(0, 500));
+        }
+      } catch (imageError) {
+        console.error('Error generating image:', imageError);
+        // Continue without image - don't fail the whole request
+      }
     }
 
     return new Response(JSON.stringify(medicineData), {
