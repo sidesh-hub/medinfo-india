@@ -1,30 +1,90 @@
 import { useState, useRef, useEffect } from 'react';
-import { Message } from '@/types/medicine';
-import { findMedicine } from '@/data/sampleMedicines';
+import { Message, Medicine } from '@/types/medicine';
 import ChatHeader from './ChatHeader';
 import MessageBubble from './MessageBubble';
 import ChatInput from './ChatInput';
 import SuggestedQueries from './SuggestedQueries';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Pill } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 const WELCOME_MESSAGE: Message = {
   id: 'welcome',
   role: 'assistant',
-  content: `Hello! 👋 I'm MedInfo, your medicine information assistant for Indian medicines.
+  content: `Hello! 👋 I'm MedInfo, your medicine information assistant.
 
 I can help you with:
 • Medicine details, composition & uses
 • Side effects and precautions
-• Indian alternatives and pricing
-• Availability information
+• Pricing and availability information
+• Drug interactions and warnings
 
 **Note:** I provide information only. For prescriptions or medical advice, please consult a licensed doctor.
 
 How can I help you today?`,
   timestamp: new Date(),
+};
+
+interface MedicineLookupResponse {
+  found: boolean;
+  medicine: {
+    id: string;
+    name: string;
+    genericName: string;
+    manufacturer: string;
+    category: string;
+    schedule: string;
+    composition: string[];
+    uses: string[];
+    sideEffects: string[];
+    warnings: string[];
+    dosage: {
+      adults: string;
+      children: string;
+      elderly: string;
+    };
+    storage: string;
+    interactions: string[];
+    contraindications: string[];
+    price: {
+      amount: number;
+      currency: string;
+      unit: string;
+    };
+    availability: string;
+    dosageForms: string[];
+    imageUrl: string | null;
+  } | null;
+  suggestion?: string;
+  disclaimer?: string;
+  error?: string;
+}
+
+const transformToMedicine = (data: MedicineLookupResponse['medicine']): Medicine | undefined => {
+  if (!data) return undefined;
+  
+  return {
+    id: data.id,
+    name: data.name,
+    manufacturer: data.manufacturer,
+    composition: data.composition.join(', '),
+    uses: data.uses,
+    schedule: data.schedule as Medicine['schedule'],
+    sideEffects: data.sideEffects,
+    precautions: data.warnings,
+    contraindications: data.contraindications,
+    alternatives: [],
+    priceRange: {
+      min: data.price.amount * 0.8,
+      max: data.price.amount * 1.2,
+      unit: data.price.unit,
+    },
+    availability: data.availability as Medicine['availability'],
+    dosageForms: data.dosageForms,
+    imageUrl: data.imageUrl || undefined,
+  };
 };
 
 const ChatContainer = () => {
@@ -40,7 +100,61 @@ const ChatContainer = () => {
     scrollToBottom();
   }, [messages]);
 
-  const processUserMessage = (userMessage: string) => {
+  const getCasualResponse = (message: string): string => {
+    if (/^(hi|hello|hey|hii+|hola|namaste)/i.test(message)) {
+      return `Hello! 👋 Great to meet you! I'm here to help you with medicine information. What would you like to know about?`;
+    }
+    if (/^(how are you|how're you|wassup|what's up)/i.test(message)) {
+      return `I'm doing great, thank you for asking! 😊 Ready to help you with any medicine-related questions. What can I look up for you today?`;
+    }
+    if (/^(thanks|thank you|thx)/i.test(message)) {
+      return `You're welcome! 🙏 Feel free to ask if you need information about any other medicines. Stay healthy!`;
+    }
+    if (/^(bye|goodbye|see you)/i.test(message)) {
+      return `Goodbye! Take care and stay healthy! 👋 Feel free to come back anytime you need medicine information.`;
+    }
+    return `I'm here to help! Would you like to know about any medicine?`;
+  };
+
+  const lookupMedicine = async (medicineName: string): Promise<{ content: string; medicineData?: Medicine }> => {
+    try {
+      const { data, error } = await supabase.functions.invoke<MedicineLookupResponse>('medicine-lookup', {
+        body: { medicineName },
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message);
+      }
+
+      if (!data) {
+        throw new Error('No data received');
+      }
+
+      if (data.found && data.medicine) {
+        const medicine = transformToMedicine(data.medicine);
+        return {
+          content: `Here's the detailed information for **${data.medicine.name}**:`,
+          medicineData: medicine,
+        };
+      } else {
+        return {
+          content: data.suggestion 
+            ? `${data.suggestion}\n\n${data.disclaimer || ''}`
+            : `I couldn't find information about "${medicineName}". Please check the spelling or try a different medicine name.\n\n${data.disclaimer || ''}`,
+          medicineData: undefined,
+        };
+      }
+    } catch (error) {
+      console.error('Medicine lookup error:', error);
+      return {
+        content: `Sorry, I encountered an error while looking up "${medicineName}". Please try again in a moment.`,
+        medicineData: undefined,
+      };
+    }
+  };
+
+  const processUserMessage = async (userMessage: string): Promise<{ content: string; medicineData?: Medicine }> => {
     const lowerMessage = userMessage.toLowerCase();
 
     // Check for casual conversation
@@ -87,62 +201,25 @@ Is there any general information about a medicine I can help you with?`,
       }
     }
 
-    // Check for fever medicine question
+    // Check for general questions about medicine types
     if (lowerMessage.includes('fever') && (lowerMessage.includes('medicine') || lowerMessage.includes('what') || lowerMessage.includes('which'))) {
       return {
-        content: `I cannot prescribe medication. However, I can provide information about medicines commonly used for fever in India.
+        content: `I cannot prescribe medication. However, I can provide information about medicines commonly used for fever.
 
-**Common OTC fever medicines in India:**
-• **Paracetamol** (Dolo 650, Crocin, Calpol) - Most commonly used
-• **Ibuprofen** (Brufen, Ibugesic) - Also reduces inflammation
-• **Combination products** (Crocin Advance, Combiflam)
+**Common OTC fever medicines:**
+• **Paracetamol** (Dolo 650, Crocin, Tylenol) - Most commonly used
+• **Ibuprofen** (Brufen, Advil) - Also reduces inflammation
+• **Aspirin** - For adults only
 
-Would you like detailed information about any of these? Just ask "Tell me about Dolo 650" for example.
+Would you like detailed information about any of these? Just ask "Tell me about Dolo 650" or any medicine name.
 
 ⚠️ **Important:** If fever persists beyond 3 days or is very high, please consult a doctor.`,
         medicineData: undefined,
       };
     }
 
-    // Try to find medicine information
-    const medicine = findMedicine(userMessage);
-    
-    if (medicine) {
-      return {
-        content: `Here's the detailed information for **${medicine.name}**:`,
-        medicineData: medicine,
-      };
-    }
-
-    // No medicine found
-    return {
-      content: `I couldn't find information about "${userMessage}" in my database. 
-
-**Try searching for:**
-• Brand names like "Dolo 650", "Pan D", "Azithromycin"
-• Generic names like "Paracetamol", "Omeprazole"
-
-I currently have detailed information on common Indian medicines. More medicines will be added to the database soon!
-
-Is there another medicine you'd like to know about?`,
-      medicineData: undefined,
-    };
-  };
-
-  const getCasualResponse = (message: string): string => {
-    if (/^(hi|hello|hey|hii+|hola|namaste)/i.test(message)) {
-      return `Hello! 👋 Great to meet you! I'm here to help you with medicine information. What would you like to know about?`;
-    }
-    if (/^(how are you|how're you|wassup|what's up)/i.test(message)) {
-      return `I'm doing great, thank you for asking! 😊 Ready to help you with any medicine-related questions. What can I look up for you today?`;
-    }
-    if (/^(thanks|thank you|thx)/i.test(message)) {
-      return `You're welcome! 🙏 Feel free to ask if you need information about any other medicines. Stay healthy!`;
-    }
-    if (/^(bye|goodbye|see you)/i.test(message)) {
-      return `Goodbye! Take care and stay healthy! 👋 Feel free to come back anytime you need medicine information.`;
-    }
-    return `I'm here to help! Would you like to know about any medicine?`;
+    // Use AI to look up any medicine
+    return await lookupMedicine(userMessage);
   };
 
   const handleSendMessage = async (content: string) => {
@@ -166,11 +243,8 @@ Is there another medicine you'd like to know about?`,
     };
     setMessages((prev) => [...prev, typingMessage]);
 
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 500));
-
-    // Process and respond
-    const response = processUserMessage(content);
+    // Process and respond using AI
+    const response = await processUserMessage(content);
 
     // Remove typing indicator and add response
     const assistantMessage: Message = {
@@ -247,8 +321,8 @@ Is there anything else you'd like to know?`,
                 Medicine Information Assistant
               </h2>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Get detailed information about medicines available in India. 
-                Try asking about any medicine below!
+                Get detailed information about any medicine. 
+                Ask about any medicine by name!
               </p>
             </div>
           )}

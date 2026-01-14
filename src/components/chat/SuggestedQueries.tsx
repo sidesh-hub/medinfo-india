@@ -8,13 +8,18 @@ interface SuggestedQueriesProps {
 const suggestions = [
   {
     icon: Pill,
-    label: 'Dolo 650',
-    query: 'Tell me about Dolo 650',
+    label: 'Amoxicillin',
+    query: 'Tell me about Amoxicillin',
   },
   {
     icon: Search,
-    label: 'Pan D',
-    query: 'What is Pan D used for?',
+    label: 'Metformin',
+    query: 'What is Metformin used for?',
+  },
+  {
+    icon: Pill,
+    label: 'Omeprazole',
+    query: 'Tell me about Omeprazole',
   },
   {
     icon: HelpCircle,
