@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Medicine } from '@/types/medicine';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Pill, 
   Building2, 
@@ -13,7 +15,8 @@ import {
   ArrowRightLeft, 
   IndianRupee, 
   MapPin,
-  Package
+  Package,
+  ImageOff
 } from 'lucide-react';
 
 interface MedicineCardProps {
@@ -52,22 +55,34 @@ const getAvailabilityColor = (availability: Medicine['availability']) => {
 };
 
 const MedicineCard = ({ medicine }: MedicineCardProps) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
   return (
     <Card className="w-full max-w-2xl border-medicine-border shadow-card overflow-hidden animate-slide-up">
       {/* Header with Image */}
       <CardHeader className="bg-medicine-header pb-4">
         <div className="flex items-start gap-4">
           {/* Medicine Image */}
-          {medicine.imageUrl && (
-            <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-white border border-border/50 shadow-sm">
+          {medicine.imageUrl && !imageError ? (
+            <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-white border border-border/50 shadow-sm relative">
+              {!imageLoaded && (
+                <Skeleton className="absolute inset-0 w-full h-full" />
+              )}
               <img 
                 src={medicine.imageUrl} 
                 alt={`${medicine.name} packaging`}
-                className="w-full h-full object-contain p-1"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
+                className={`w-full h-full object-contain p-1 transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageError(true)}
               />
+            </div>
+          ) : (
+            <div className="flex-shrink-0 w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden bg-accent/50 border border-border/50 shadow-sm flex items-center justify-center">
+              <div className="text-center">
+                <Pill className="w-8 h-8 text-primary/60 mx-auto" />
+                <span className="text-xs text-muted-foreground mt-1 block">Medicine</span>
+              </div>
             </div>
           )}
           <div className="flex-1 flex items-start justify-between gap-4">
