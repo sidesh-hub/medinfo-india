@@ -74,19 +74,18 @@ If the medicine is not recognized or doesn't exist, return:
 
 Be accurate and provide real pharmaceutical information. Include common brand names if the generic name is given, and vice versa.`;
 
-    const response = await fetch('https://api.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-3-flash-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Provide detailed information about this medicine: ${medicineName}` }
         ],
-        temperature: 0.3,
       }),
     });
 
