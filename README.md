@@ -1,73 +1,138 @@
-# Welcome to your Lovable project
+# MedInfo India
+
+A medical information lookup application for finding detailed pharmaceutical data.
 
 ## Project info
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Built with Vite, React, TypeScript, and Supabase.
 
 ## How can I edit this code?
 
-There are several ways of editing your application.
-
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
 **Use your preferred IDE**
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+Clone this repository and make changes locally using your favorite code editor
+## 🧠 How It Works
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+MedInfo uses an LLM-powered chat experience that understands user queries such as:
 
-Follow these steps:
+> "Is Dolo 650 safe for kids?"
+> "Substitute for Atorva 10?"
+> "What is Azithromycin used for?"
+
+The intelligence layer handles interpretation and response generation without depending on public drug APIs. This makes the system highly flexible and fast to extend.
+
+---
+
+## 🧩 Tech Stack
+
+| Layer              | Technology                   |
+| ------------------ | ---------------------------- |
+| Framework          | Vite + React 18              |
+| Language           | TypeScript                   |
+| UI Components      | shadcn/ui + Radix UI         |
+| Styling            | Tailwind CSS                 |
+| State/Data         | React Query                  |
+| Routing            | React Router DOM             |
+| Backend (Optional) | Supabase                     |
+| AI Layer           | LLM-driven (model-pluggable) |
+| Notifications      | Sonner + shadcn Toaster      |
+| Charts (future)    | Recharts                     |
+| Theming            | next-themes                  |
+
+---
+
+
+## ⚡️ Development Setup
+
+### 1. Clone the repository
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+git clone https://github.com/your-username/medinfo-india.git
+cd medinfo-india
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 2. Install dependencies
 
-# Step 3: Install the necessary dependencies.
-npm i
+```sh
+npm install
+```
+This project can be deployed to various platforms including Vercel, Netlify, or any static hosting service:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+1. Build the project: `npm run build`
+2. Deploy the `dist` folder to your hosting provider
+
+## Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+### 4. Run development server
+
+```sh
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+---
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🧱 Design Principles
 
-**Use GitHub Codespaces**
+* **Conversational over structured**
+* **Accessible healthcare knowledge**
+* **India-focused medicine context**
+* **Modular + maintainable codebase**
+* **Future extensibility for:**
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+  * Prescription analytics
+  * Pricing integration
+  * Indian pharmacy APIs (Netmeds / 1mg / Apollo / PharmEasy)
+  * Offline caching
+  * Doctor-side dashboards
 
-## What technologies are used for this project?
+---
 
-This project is built with:
+## 🌐 Deployment
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Can be deployed to:
 
-## How can I deploy this project?
+* Vercel
+* Netlify
+* Supabase Hosting
+* Railway
+* Render
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Build:
 
-## Can I connect a custom domain to my Lovable project?
+```sh
+npm run build
+npm run preview
+```
 
-Yes, you can!
+---
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📌 Status
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+> Currently in active development and undergoing enhancements for richer AI medical context and integration with Indian pharmaceutical datasets.
+
+---
+
+## 🎯 Vision
+
+To create a reliable and intelligent conversational interface for medicine understanding in India — making medical information more accessible, contextual, and user-friendly.
+
+---
+
+## 🛡 Disclaimer
+
+MedInfo India is intended for educational and informational purposes only and does not replace professional medical consultation.
+
+---
+
+## 👤 Author
+
+Sidesh
+Creator & Developer — MedInfo India
+
+---

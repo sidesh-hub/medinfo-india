@@ -6,7 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const AI_GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const CHAT_URL = 'https://api.openai.com/v1/chat/completions';
+const IMAGE_URL = 'https://api.openai.com/v1/images/generations';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -26,9 +27,9 @@ serve(async (req) => {
 
     console.log(`Looking up medicine: ${medicineName}`);
 
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      console.error('LOVABLE_API_KEY is not configured');
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
+      console.error('OPENAI_API_KEY is not configured');
       return new Response(
         JSON.stringify({ error: 'AI is not configured', found: false, medicine: null }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -83,14 +84,14 @@ If the medicine is not recognized or doesn't exist, return:
 Be accurate and provide real pharmaceutical information. Include common brand names if the generic name is given, and vice versa.`;
 
     // Step 1: Get medicine information
-    const infoResponse = await fetch(AI_GATEWAY_URL, {
+    const infoResponse = await fetch(CHAT_URL, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'gpt-4-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Provide detailed information about this medicine: ${medicineName}` },
@@ -131,24 +132,23 @@ Be accurate and provide real pharmaceutical information. Include common brand na
         const medicine = medicineData.medicine;
         const imagePrompt = `Generate a professional, clean product image of a medicine package/box. The medicine is "${medicine.name}" (${medicine.genericName}) made by ${medicine.manufacturer}. Show a realistic pharmaceutical packaging with the medicine name clearly visible. The packaging should look professional and medical. White or light background for product photography. Dosage form: ${medicine.dosageForms?.[0] || 'tablet'}. Style: commercial product photography, clean, professional, pharmaceutical.`;
 
-        const imageResponse = await fetch(AI_GATEWAY_URL, {
+        const imageResponse = await fetch(IMAGE_URL, {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${lovableApiKey}`,
+            'Authorization': `Bearer ${openaiApiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash-image-preview',
-            messages: [
-              { role: 'user', content: imagePrompt }
-            ],
-            modalities: ['image', 'text'],
+            model: 'dall-e-3',
+            prompt: imagePrompt,
+            n: 1,
+            size: '1024x1024',
           }),
         });
 
         if (imageResponse.ok) {
           const imageData = await imageResponse.json();
-          const generatedImage = imageData.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+          const generatedImage = imageData.data?.[0]?.url;
           
           if (generatedImage) {
             medicineData.medicine.imageUrl = generatedImage;
