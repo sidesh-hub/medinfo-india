@@ -310,7 +310,7 @@ Is there anything else you'd like to know?`,
       <ChatHeader />
 
       <ScrollArea className="flex-1">
-        <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        <div className="w-full mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-5">
           {/* Welcome State */}
           {hasOnlyWelcome && (
             <div className="text-center mb-6 animate-fade-in">
@@ -328,7 +328,7 @@ Is there anything else you'd like to know?`,
           )}
 
           {/* Messages */}
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-2 sm:space-y-4 md:space-y-6">
             {messages.map((message) => (
               <MessageBubble key={message.id} message={message} />
             ))}
