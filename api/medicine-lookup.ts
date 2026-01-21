@@ -1,6 +1,4 @@
-export const config = {
-    runtime: 'edge',
-};
+
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -27,7 +25,7 @@ export default async function handler(req: Request) {
 
         console.log(`Looking up medicine: ${medicineName}`);
 
-        const geminiApiKey = process.env.GEMINI_API_KEY;
+        const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
         if (!geminiApiKey) {
             console.error('GEMINI_API_KEY is not configured');
             return new Response(
