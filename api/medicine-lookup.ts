@@ -1,29 +1,38 @@
 export const config = {
-    maxDuration: 60, // Optional: Allow up to 60 seconds
+    runtime: 'edge',
 };
 
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
-export default async function handler(req, res) {
-    // Set CORS headers
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
-    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-
-    // Handle Preflight
+export default async function handler(req: Request) {
+    // Handle CORS for Preflight and Main Request
     if (req.method === 'OPTIONS') {
-        return res.status(200).end();
+        return new Response(null, {
+            status: 200,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS',
+                'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+            },
+        });
     }
 
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method Not Allowed' });
+        return new Response(JSON.stringify({ error: 'Method Not Allowed' }), {
+            status: 405,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
     }
 
     try {
-        const { medicineName } = req.body || {};
+        const body = await req.json();
+        const { medicineName } = body || {};
 
         if (!medicineName || typeof medicineName !== 'string' || medicineName.trim() === '') {
-            return res.status(400).json({ error: 'Medicine name is required' });
+            return new Response(JSON.stringify({ error: 'Medicine name is required' }), {
+                status: 400,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            });
         }
 
         console.log(`Looking up medicine: ${medicineName}`);
@@ -31,7 +40,10 @@ export default async function handler(req, res) {
         const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
         if (!geminiApiKey) {
             console.error('GEMINI_API_KEY is not configured');
-            return res.status(500).json({ error: 'Server configuration error: Missing Gemini API Key' });
+            return new Response(JSON.stringify({ error: 'Server configuration error: Missing Gemini API Key' }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            });
         }
 
         const systemPrompt = `You are a pharmaceutical information assistant. When given a medicine name, provide accurate, detailed information in JSON format.
@@ -97,8 +109,10 @@ Be accurate.`;
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Gemini API error', { status: response.status, body: errorText?.slice?.(0, 1000) });
-            // Pass the API error detail back to client for debugging
-            return res.status(500).json({ error: `AI API error: ${response.status}`, details: errorText });
+            return new Response(JSON.stringify({ error: `AI API error: ${response.status}`, details: errorText }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            });
         }
 
         const data = await response.json();
@@ -122,18 +136,27 @@ Be accurate.`;
             }
         } catch (parseError) {
             console.error('Failed to parse AI response:', generatedText);
-            return res.status(500).json({ error: 'Failed to parse medicine information' });
+            return new Response(JSON.stringify({ error: 'Failed to parse medicine information' }), {
+                status: 500,
+                headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+            });
         }
 
-        return res.status(200).json(medicineData);
+        return new Response(JSON.stringify(medicineData), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+        });
 
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('Error in medicine-lookup function:', errorMessage);
-        return res.status(500).json({
+        return new Response(JSON.stringify({
             error: errorMessage,
             found: false,
             medicine: null
+        }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
         });
     }
 }
