@@ -1,26 +1,29 @@
-
-
-const corsHeaders = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+export const config = {
+    maxDuration: 60, // Optional: Allow up to 60 seconds
 };
 
 const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
-export default async function handler(req: Request) {
-    // Handle CORS preflight requests
+export default async function handler(req, res) {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+
+    // Handle Preflight
     if (req.method === 'OPTIONS') {
-        return new Response(null, { headers: corsHeaders });
+        return res.status(200).end();
+    }
+
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method Not Allowed' });
     }
 
     try {
-        const { medicineName } = await req.json();
+        const { medicineName } = req.body || {};
 
-        if (!medicineName || medicineName.trim() === '') {
-            return new Response(
-                JSON.stringify({ error: 'Medicine name is required' }),
-                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+        if (!medicineName || typeof medicineName !== 'string' || medicineName.trim() === '') {
+            return res.status(400).json({ error: 'Medicine name is required' });
         }
 
         console.log(`Looking up medicine: ${medicineName}`);
@@ -28,10 +31,7 @@ export default async function handler(req: Request) {
         const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
         if (!geminiApiKey) {
             console.error('GEMINI_API_KEY is not configured');
-            return new Response(
-                JSON.stringify({ error: 'Server configuration error: Missing Gemini API Key' }),
-                { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+            return res.status(500).json({ error: 'Server configuration error: Missing Gemini API Key' });
         }
 
         const systemPrompt = `You are a pharmaceutical information assistant. When given a medicine name, provide accurate, detailed information in JSON format.
@@ -97,7 +97,8 @@ Be accurate.`;
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Gemini API error', { status: response.status, body: errorText?.slice?.(0, 1000) });
-            throw new Error(`AI API error: ${response.status}`);
+            // Pass the API error detail back to client for debugging
+            return res.status(500).json({ error: `AI API error: ${response.status}`, details: errorText });
         }
 
         const data = await response.json();
@@ -121,23 +122,18 @@ Be accurate.`;
             }
         } catch (parseError) {
             console.error('Failed to parse AI response:', generatedText);
-            throw new Error('Failed to parse medicine information');
+            return res.status(500).json({ error: 'Failed to parse medicine information' });
         }
 
-        return new Response(JSON.stringify(medicineData), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        return res.status(200).json(medicineData);
 
-    } catch (error: unknown) {
+    } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         console.error('Error in medicine-lookup function:', errorMessage);
-        return new Response(
-            JSON.stringify({
-                error: errorMessage,
-                found: false,
-                medicine: null
-            }),
-            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return res.status(500).json({
+            error: errorMessage,
+            found: false,
+            medicine: null
+        });
     }
 }
