@@ -4,8 +4,9 @@ export const config = {
 
 const MODELS_TO_TRY = [
     'gemini-1.5-flash',
-    'gemini-1.5-flash-001',
+    'gemini-1.5-flash-8b',
     'gemini-1.5-pro',
+    'gemini-2.0-flash-exp',
     'gemini-pro'
 ];
 
@@ -43,7 +44,15 @@ export default async function handler(req: Request) {
 
         console.log(`Looking up medicine: ${medicineName}`);
 
-        const geminiApiKey = process.env.GEMINI_API_KEY?.trim();
+        // Sanitize API Key: convert to string, remove whitespace, remove wrapping quotes if present
+        let geminiApiKey = process.env.GEMINI_API_KEY ? String(process.env.GEMINI_API_KEY).trim() : '';
+        if (geminiApiKey.startsWith('"') && geminiApiKey.endsWith('"')) {
+            geminiApiKey = geminiApiKey.slice(1, -1);
+        }
+        if (geminiApiKey.startsWith("'") && geminiApiKey.endsWith("'")) {
+            geminiApiKey = geminiApiKey.slice(1, -1);
+        }
+
         if (!geminiApiKey) {
             console.error('GEMINI_API_KEY is not configured');
             return new Response(JSON.stringify({ error: 'Server configuration error: Missing Gemini API Key' }), {
@@ -106,7 +115,6 @@ Be accurate.`;
         // Try models in sequence
         for (const model of MODELS_TO_TRY) {
             try {
-                console.log(`Trying model: ${model}`);
                 const response = await fetch(`${BASE_URL}/${model}:generateContent?key=${geminiApiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -123,9 +131,10 @@ Be accurate.`;
                     break;
                 } else {
                     const errorText = await response.text();
-                    console.warn(`Model ${model} failed with status ${response.status}:`, errorText.slice(0, 200));
-                    lastError = { status: response.status, details: errorText };
-                    // If 404, we continue to next model. If 403 (auth), likely all will fail, but we continue anyway to be safe.
+                    // Sanitize error text to avoid leaking full HTML if it's a 404 page, but keep enough to debug
+                    const safeErrorText = errorText.slice(0, 500);
+                    console.warn(`Model ${model} failed with status ${response.status}:`, safeErrorText);
+                    lastError = { status: response.status, details: safeErrorText };
                 }
             } catch (err) {
                 console.error(`Error fetching model ${model}:`, err);
@@ -135,8 +144,10 @@ Be accurate.`;
 
         if (!successData) {
             console.error('All models failed. Last error:', lastError);
+            // Return validation details in the error string so user can see it in client UI
+            const detailedMsg = lastError?.details ? `Details: ${lastError.details}` : '';
             return new Response(JSON.stringify({
-                error: `AI API error: All models failed. Last status: ${lastError?.status}`,
+                error: `AI API error: All models failed. Status: ${lastError?.status}. ${detailedMsg}`,
                 details: lastError?.details
             }), {
                 status: 500,
