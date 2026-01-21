@@ -64,7 +64,7 @@ interface MedicineLookupResponse {
 
 const transformToMedicine = (data: MedicineLookupResponse['medicine']): Medicine | undefined => {
   if (!data) return undefined;
-  
+
   return {
     id: data.id,
     name: data.name,
@@ -116,16 +116,24 @@ const ChatContainer = () => {
     return `I'm here to help! Would you like to know about any medicine?`;
   };
 
+
+
   const lookupMedicine = async (medicineName: string): Promise<{ content: string; medicineData?: Medicine }> => {
     try {
-      const { data, error } = await supabase.functions.invoke<MedicineLookupResponse>('medicine-lookup', {
-        body: { medicineName },
+      const response = await fetch('/api/medicine-lookup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ medicineName }),
       });
 
-      if (error) {
-        console.error('Edge function error:', error);
-        throw new Error(error.message);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Server Error: ${response.status}`);
       }
+
+      const data: MedicineLookupResponse = await response.json();
 
       if (!data) {
         throw new Error('No data received');
@@ -139,7 +147,7 @@ const ChatContainer = () => {
         };
       } else {
         return {
-          content: data.suggestion 
+          content: data.suggestion
             ? `${data.suggestion}\n\n${data.disclaimer || ''}`
             : `I couldn't find information about "${medicineName}". Please check the spelling or try a different medicine name.\n\n${data.disclaimer || ''}`,
           medicineData: undefined,
@@ -147,8 +155,14 @@ const ChatContainer = () => {
       }
     } catch (error) {
       console.error('Medicine lookup error:', error);
+      let errorMessage = 'An error occurred while looking up the medicine.';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
       return {
-        content: `Sorry, I encountered an error while looking up "${medicineName}". Please try again in a moment.`,
+        content: `Sorry, I encountered an error: **${errorMessage}**. \n\nPlease check the console for more details.`,
         medicineData: undefined,
       };
     }
@@ -321,7 +335,7 @@ Is there anything else you'd like to know?`,
                 Medicine Information Assistant
               </h2>
               <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                Get detailed information about any medicine. 
+                Get detailed information about any medicine.
                 Ask about any medicine by name!
               </p>
             </div>
