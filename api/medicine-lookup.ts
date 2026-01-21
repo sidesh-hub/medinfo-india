@@ -2,10 +2,16 @@ export const config = {
     runtime: 'edge',
 };
 
-const GEMINI_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+const MODELS_TO_TRY = [
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-001',
+    'gemini-1.5-pro',
+    'gemini-pro'
+];
+
+const BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 export default async function handler(req: Request) {
-    // Handle CORS for Preflight and Main Request
     if (req.method === 'OPTIONS') {
         return new Response(null, {
             status: 200,
@@ -94,29 +100,51 @@ If the medicine is not recognized or doesn't exist, return:
 
 Be accurate.`;
 
-        const response = await fetch(`${GEMINI_URL}?key=${geminiApiKey}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: systemPrompt }, { text: `Provide detailed information about this medicine: ${medicineName}` }]
-                }]
-            })
-        });
+        let lastError = null;
+        let successData = null;
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Gemini API error', { status: response.status, body: errorText?.slice?.(0, 1000) });
-            return new Response(JSON.stringify({ error: `AI API error: ${response.status}`, details: errorText }), {
+        // Try models in sequence
+        for (const model of MODELS_TO_TRY) {
+            try {
+                console.log(`Trying model: ${model}`);
+                const response = await fetch(`${BASE_URL}/${model}:generateContent?key=${geminiApiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: systemPrompt }, { text: `Provide detailed information about this medicine: ${medicineName}` }]
+                        }]
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    successData = data;
+                    break;
+                } else {
+                    const errorText = await response.text();
+                    console.warn(`Model ${model} failed with status ${response.status}:`, errorText.slice(0, 200));
+                    lastError = { status: response.status, details: errorText };
+                    // If 404, we continue to next model. If 403 (auth), likely all will fail, but we continue anyway to be safe.
+                }
+            } catch (err) {
+                console.error(`Error fetching model ${model}:`, err);
+                lastError = { status: 500, details: err instanceof Error ? err.message : String(err) };
+            }
+        }
+
+        if (!successData) {
+            console.error('All models failed. Last error:', lastError);
+            return new Response(JSON.stringify({
+                error: `AI API error: All models failed. Last status: ${lastError?.status}`,
+                details: lastError?.details
+            }), {
                 status: 500,
                 headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
             });
         }
 
-        const data = await response.json();
-        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        const generatedText = successData.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!generatedText) {
             throw new Error('No content received from Gemini');
@@ -125,7 +153,6 @@ Be accurate.`;
         // Parse the JSON from AI response
         let medicineData;
         try {
-            // Clean up markdown code blocks if Gemini returns them
             const cleanJson = generatedText.replace(/```json\n|\n```/g, '').trim();
             const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
 
